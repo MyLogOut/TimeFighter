@@ -4,9 +4,13 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
+import android.view.animation.AnimationUtils
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
@@ -20,7 +24,7 @@ class MainActivity : AppCompatActivity() {
     internal var gameStarted = false
 
     internal lateinit var countDownTimer: CountDownTimer
-    internal val initialCountDown: Long = 60000
+    internal val initialCountDown: Long = 5000
     internal val countDownInterval: Long = 1000
     internal var timeLeftOnTimer: Long = 60000
 
@@ -28,6 +32,7 @@ class MainActivity : AppCompatActivity() {
         private val TAG = MainActivity::class.java.simpleName
         private const val SCORE_KEY = "SCORE_KEY"
         private const val TIME_LEFT_KEY = "TIME_LEFT_KEY"
+        private const val GAME_STATE_KEY = "GAME_STATE_KEY"
 
     }
 
@@ -40,14 +45,41 @@ class MainActivity : AppCompatActivity() {
         timerTextView = findViewById(R.id.timeFighterTimerTextView)
 
         tapMeButton.setOnClickListener { view ->
+            val bounceAnimation = AnimationUtils.loadAnimation(this, R.anim.bounce)
+            view.startAnimation(bounceAnimation)
+
             incrementScore()
         }
 
         if (savedInstanceState != null) {
             score = savedInstanceState.getInt(SCORE_KEY)
             timeLeftOnTimer = savedInstanceState.getLong(TIME_LEFT_KEY)
-            restoreGame()
+            gameStarted = savedInstanceState.getBoolean(GAME_STATE_KEY)
+            Log.d(TAG, "savedInstanceState= NotNull, Game Started: $gameStarted . values passed: Score: $score, TimeLeft: $timeLeftOnTimer")
         } else resetGame()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        super.onCreateOptionsMenu(menu)
+        menuInflater.inflate(R.menu.menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem?): Boolean {
+        super.onOptionsItemSelected(item)
+        if (item?.itemId == R.id.actionAbout) showInfo()
+        return true
+    }
+
+    private fun showInfo() {
+
+        val dialogTitle = getString(R.string.aboutTitle, BuildConfig.VERSION_NAME)
+        val dialogMessage = getString(R.string.aboutMessage)
+
+        val dialogBuilder = AlertDialog.Builder(this)
+        dialogBuilder.setTitle(dialogTitle)
+        dialogBuilder.setMessage(dialogMessage)
+        dialogBuilder.create().show()
     }
 
 
@@ -55,14 +87,16 @@ class MainActivity : AppCompatActivity() {
         super.onSaveInstanceState(outState)
         outState?.putInt(SCORE_KEY, score)
         outState?.putLong(TIME_LEFT_KEY, timeLeftOnTimer)
+        outState?.putBoolean(GAME_STATE_KEY, gameStarted)
         countDownTimer.cancel()
 
         Log.d(TAG, "onSavedInstanceState: Saving score: $score and timeLeft: $timeLeftOnTimer")
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        Log.d(TAG, "onDestroy called.")
+    override fun onResume() {
+        super.onResume()
+        if (gameStarted) restoreGame()
+        else resetGame()
     }
 
     private fun resetGame() {
@@ -71,6 +105,7 @@ class MainActivity : AppCompatActivity() {
         val initialTimeLeft = initialCountDown / 1000
         timerTextView.text = getString(R.string.timeFighterTimer, initialTimeLeft)
         countDownTimer = object : CountDownTimer(initialCountDown, countDownInterval) {
+
             override fun onTick(millisUntilFinished: Long) {
                 timeLeftOnTimer = millisUntilFinished
                 val timeLeft = millisUntilFinished / 1000
@@ -90,6 +125,8 @@ class MainActivity : AppCompatActivity() {
         score +=1
         val newScore = getString(R.string.timeFighterScore, score)
         scoreTextView.text = newScore
+        val fadeInOutAnimation = AnimationUtils.loadAnimation(scoreTextView.context, R.anim.fade_in_out)
+        scoreTextView.startAnimation(fadeInOutAnimation)
     }
 
     private fun startGame() {
